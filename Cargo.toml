@@ -1,0 +1,6 @@
+[package]
+name = "erosion"
+version = "0.1.0"
+authors = ["flo"]
+
+[dependencies]
