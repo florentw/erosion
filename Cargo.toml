@@ -1,6 +1,6 @@
 [package]
 name = "erosion"
 version = "0.1.0"
-authors = ["flo"]
+authors = ["Florent Weber <florent.weber@gmail.com>"]
 
 [dependencies]
