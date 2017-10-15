@@ -1,4 +1,7 @@
-mod throughput;
+pub mod throughput;
+
+
+
 
 
 //impl Erosion {

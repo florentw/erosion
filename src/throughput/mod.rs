@@ -13,7 +13,23 @@ pub struct ThroughputResults {
     was_interrupted: bool
 }
 
-pub fn single_thread_throughput_interval(target_throughput: f64, previous_results: Option<ThroughputResults>) -> ThroughputResults {
+type EventFunction = fn(event_index: &u64);
+
+pub struct EventSource {
+    pub trigger_event: EventFunction
+}
+
+impl EventSource {
+    fn set_function(&mut self, f: EventFunction) {
+        self.trigger_event = f;
+    }
+
+    fn trigger_event(&mut self, event_index: &u64) {
+        (self.trigger_event)(event_index);
+    }
+}
+
+pub fn single_thread_throughput_interval(target_throughput: f64, previous_results: Option<ThroughputResults>, mut event_source: EventSource) -> ThroughputResults {
     let start = Instant::now();
 
     let target_throughput_int: u64 = (target_throughput * SMALL_INTERVAL_DIVIDER as f64).ceil() as u64;
@@ -52,7 +68,7 @@ pub fn single_thread_throughput_interval(target_throughput: f64, previous_result
                 return ThroughputResults { last_sleep: previous_sleep, was_interrupted: true };
             }
 
-            trigger_event(&events_sent);
+            (event_source.trigger_event)(&events_sent);
             events_sent += 1;
         }
 
@@ -92,13 +108,6 @@ pub fn single_thread_throughput_interval(target_throughput: f64, previous_result
 
 pub fn to_millis(elapsed: Duration) -> u64 {
     (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64
-}
-
-fn trigger_event(event_index: &u64) {
-    thread::sleep(Duration::new(0, 100));
-    if event_index % 100 == 0 {
-        println!("Event count {}", event_index);
-    }
 }
 
 fn remaining_sleep_duration(start: Instant, main_target_interval: Duration) -> Duration {
