@@ -7,29 +7,20 @@ const ROUND_FACTOR: f64 = 100.0;
 
 pub struct ThroughputResults {
     // Total sleeping time during throughput iteration
-    last_sleep: Duration,
+    pub last_sleep: Duration,
 
     // Was the throughput iteration interrupted before finishing?
-    was_interrupted: bool
+    pub was_interrupted: bool,
+
+    // Distance in events/s to target throughput
+    pub throughput_distance: f64
 }
 
-type EventFunction = fn(event_index: &u64);
-
-pub struct EventSource {
-    pub trigger_event: EventFunction
+pub trait EventSource {
+    fn trigger_event(&self, event_index: &u64);
 }
 
-impl EventSource {
-    fn set_function(&mut self, f: EventFunction) {
-        self.trigger_event = f;
-    }
-
-    fn trigger_event(&mut self, event_index: &u64) {
-        (self.trigger_event)(event_index);
-    }
-}
-
-pub fn single_thread_throughput_interval(target_throughput: f64, previous_results: Option<ThroughputResults>, mut event_source: EventSource) -> ThroughputResults {
+pub fn single_thread_throughput_interval<T: EventSource>(target_throughput: f64, previous_results: Option<ThroughputResults>, mut event_source: T) -> Option<ThroughputResults> {
     let start = Instant::now();
 
     let target_throughput_int: u64 = (target_throughput * SMALL_INTERVAL_DIVIDER as f64).ceil() as u64;
@@ -65,10 +56,10 @@ pub fn single_thread_throughput_interval(target_throughput: f64, previous_result
         for _ in 0..(events_per_small_period + additional_event) {
             if !running {
                 // is_work_complete() ||
-                return ThroughputResults { last_sleep: previous_sleep, was_interrupted: true };
+                return None;
             }
 
-            (event_source.trigger_event)(&events_sent);
+            event_source.trigger_event(&events_sent);
             events_sent += 1;
         }
 
@@ -99,11 +90,11 @@ pub fn single_thread_throughput_interval(target_throughput: f64, previous_result
 
     let total_elapsed = Instant::now().duration_since(start);
     let achieved_throughput: f64 = achieved_throughput(events_sent, total_elapsed);
-    let throughput_distance: f64 = round_to_two_places(achieved_throughput - target_throughput);
+    let throughput_distance: f64 = round_to_two_places(target_throughput - achieved_throughput);
 
-    println!("Throughput={} event/s - Was too slow:{} - Distance to target={} events/s - toSleep: {:?}", achieved_throughput, too_fast, throughput_distance, to_sleep);
+    println!("Throughput: {} event/s - Was too slow: {} - Distance to target: {} events/s - toSleep: {:?}", achieved_throughput, too_fast, throughput_distance, to_sleep);
 
-    return ThroughputResults { last_sleep: previous_sleep, was_interrupted: false };
+    return Some(ThroughputResults { last_sleep: previous_sleep, was_interrupted: false, throughput_distance });
 }
 
 pub fn to_millis(elapsed: Duration) -> u64 {
@@ -216,7 +207,7 @@ mod tests {
         use std::ops::Add;
         let start = Instant::now();
 
-        let sleep_duration = remaining_sleep_duration(start.add(Duration::from_millis(1000)), Duration::from_millis(10_000));
+        let sleep_duration = remaining_sleep_duration(start.add(Duration::from_millis(1_000)), Duration::from_millis(10_000));
 
         assert_eq!(Duration::from_millis(0), sleep_duration);
     }
