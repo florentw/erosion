@@ -20,7 +20,7 @@ pub trait EventSource {
     fn trigger_event(&self, event_index: &u64);
 }
 
-pub fn single_thread_throughput_interval<T: EventSource>(target_throughput: f64, previous_results: Option<ThroughputResults>, mut event_source: T) -> Option<ThroughputResults> {
+pub fn single_thread_throughput_interval<T: EventSource>(event_source: T, target_throughput: f64, previous_results: Option<ThroughputResults>) -> Option<ThroughputResults> {
     let start = Instant::now();
 
     let target_throughput_int: u64 = (target_throughput * SMALL_INTERVAL_DIVIDER as f64).ceil() as u64;
